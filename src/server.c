@@ -6,6 +6,16 @@
 #include <netinet/in.h>
 #include "../include/shared.h"
 
+int server_fd; // Make this global so the signal handler can access it
+
+// server won’t leave open sockets behind when Ctrl+C out
+void handle_sigint(int sig)
+{
+    printf("\nCaught SIGINT, shutting down server.\n");
+    close(server_fd);
+    exit(0);
+}
+
 int start_server()
 {
     printf("Starting HTTP server...\n");
@@ -17,7 +27,7 @@ int start_server()
 
     // Step 1: Create the socket
 
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == 0)
     {
         perror("❌ soceket failure");
@@ -48,31 +58,47 @@ int start_server()
     }
     printf("Listening for incoming connections...\n");
 
-    // Step 4: Accept incoming connections
-    int new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
-    if (new_socket < 0)
+    // Persistent server loop
+    while (1)
     {
-        perror("❌accept failed");
-        exit(EXIT_FAILURE);
-    }
-    printf("Connection accepted.\n");
 
-    // Buffer to store the request
-    char buffer[4096] = {0}; // 4KB buffer
+        // Step 4: Accept incoming connections
+        int new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
+        if (new_socket < 0)
+        {
+            perror("❌accept failed");
+            exit(EXIT_FAILURE);
+        }
+        printf("Connection accepted.\n");
 
-    // Read the incoming request
-    int valread = read(new_socket, buffer, sizeof(buffer) - 1);
-    if (valread < 0)
-    {
-        perror("❌ read failed");
+        // Buffer to store the request
+        char buffer[4096] = {0}; // 4KB buffer
+
+        // Read the incoming request
+        int valread = read(new_socket, buffer, sizeof(buffer) - 1);
+        if (valread < 0)
+        {
+            perror("❌ read failed");
+            close(new_socket);
+            exit(EXIT_FAILURE);
+        }
+        printf("Received request:\n%s\n", buffer);
+
+        // Define a basic HTTP response
+        const char *http_response =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/plain\r\n"
+            "Content-Length: 13\r\n"
+            "\r\n"
+            "Hello, World!";
+
+        // Send the response
+        write(new_socket, http_response, strlen(http_response));
+        printf("Response sent.\n");
+
+        // Close the new socket
         close(new_socket);
-        close(server_fd);
-        exit(EXIT_FAILURE);
     }
-    printf("Received request:\n%s\n", buffer);
-
-    // Close the new socket (communication socket)
-    close(new_socket);
 
     // Close the server socket (after done listening)
     close(server_fd);
@@ -82,6 +108,9 @@ int start_server()
 
 int main()
 {
+    // Register signal handler here
+    signal(SIGINT, handle_sigint);
+
     if (start_server() < 0)
     {
         fprintf(stderr, "Failed to start server\n");
