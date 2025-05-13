@@ -4,9 +4,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "../include/server.h"
-
-#define PORT 8080
+#include "../include/shared.h"
 
 int start_server()
 {
@@ -59,7 +57,19 @@ int start_server()
     }
     printf("Connection accepted.\n");
 
-    // TODO: handle the request from the client...
+    // Buffer to store the request
+    char buffer[4096] = {0}; // 4KB buffer
+
+    // Read the incoming request
+    int valread = read(new_socket, buffer, sizeof(buffer) - 1);
+    if (valread < 0)
+    {
+        perror("❌ read failed");
+        close(new_socket);
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Received request:\n%s\n", buffer);
 
     // Close the new socket (communication socket)
     close(new_socket);
@@ -67,5 +77,15 @@ int start_server()
     // Close the server socket (after done listening)
     close(server_fd);
 
+    return 0;
+}
+
+int main()
+{
+    if (start_server() < 0)
+    {
+        fprintf(stderr, "Failed to start server\n");
+        return 1;
+    }
     return 0;
 }
