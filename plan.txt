@@ -1,0 +1,27 @@
+1. Basic Single-Threaded HTTP Server
+    Create a socket
+    Bind to port 
+    Start listening
+ -> Read the incoming request
+    Write a hardcoded HTTP response
+    Close the connection
+    loop back to ->
+
+2. Parse Basic HTTP Request
+    Extract the request line
+    Parse headers
+
+3. Serve Static Files (first visual stuff - html css)
+    Use the PATH from the request
+    Open the file
+    Determine Content-Type by file extension (html. jpg .. )
+    Send HTTP response headers
+    Send file content
+    Close file and connection
+
+4. Handle Multiple Connections
+    Replace single-loop
+
+Clean Error Handling and Logging
+Test in browser
+Test with curl
