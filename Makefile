@@ -4,8 +4,8 @@ SRC_DIR = src
 OBJ_DIR = obj
 
 # Source files
-SERVER_SRC = $(SRC_DIR)/server.c
-CLIENT_SRC = $(SRC_DIR)/client.c
+SERVER_SRC = $(SRC_DIR)/server.c $(SRC_DIR)/http.c
+CLIENT_SRC = $(SRC_DIR)/client.c $(SRC_DIR)/http.c
 
 # Object files
 SERVER_OBJ = $(SERVER_SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)

@@ -5,11 +5,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "../include/shared.h"
+#include "../include/http.h"
 
 int server_fd; // Make this global so the signal handler can access it
 
 // server won’t leave open sockets behind when Ctrl+C out
-void handle_sigint(int sig)
+void handle_sigint()
 {
     printf("\nCaught SIGINT, shutting down server.\n");
     close(server_fd);
@@ -20,13 +21,7 @@ int start_server()
 {
     printf("Starting HTTP server...\n");
 
-    // create and write to a file
-    // FILE *file = fopen("output.txt", "w");
-    // fprintf(file, "Hello, File!\n");
-    // fclose(file);
-
     // Step 1: Create the socket
-
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == 0)
     {
@@ -61,7 +56,6 @@ int start_server()
     // Persistent server loop
     while (1)
     {
-
         // Step 4: Accept incoming connections
         int new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
         if (new_socket < 0)
@@ -82,27 +76,24 @@ int start_server()
             close(new_socket);
             exit(EXIT_FAILURE);
         }
-        printf("Received request:\n%s\n", buffer);
+        HttpRequest *parsed_http_req = parse_http_request(buffer);
 
-        // Define a basic HTTP response
-        const char *http_response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/plain\r\n"
-            "Content-Length: 13\r\n"
-            "\r\n"
-            "Hello, World!";
+        if (parsed_http_req == NULL)
+        {
+            perror("❌ res pars failed");
+            close(new_socket);
+            exit(EXIT_FAILURE);
+        }
 
-        // Send the response
-        write(new_socket, http_response, strlen(http_response));
-        printf("Response sent.\n");
+        // const char *http_response = build_http_response(parsed_http_req);
+        // write(new_socket, http_response, strlen(http_response));
+        // printf("Response sent.\n");
 
         // Close the new socket
         close(new_socket);
     }
-
     // Close the server socket (after done listening)
     close(server_fd);
-
     return 0;
 }
 
