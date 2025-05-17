@@ -1,15 +1,66 @@
 #include "../include/http.h"
 
+void add_req_header(HttpRequest *req, char *name, char *value)
+{
+    if (req->header_count >= MAX_HEADERS)
+    {
+        printf("Header limit reached.\n");
+        return;
+    }
+    if (name == NULL || value == NULL)
+    {
+        printf("Invalid header.\n");
+        return;
+    }
+
+    req->headers[req->header_count].name = strdup(name);
+    req->headers[req->header_count].value = strdup(value);
+    req->header_count++;
+    return;
+}
+
+void add_res_header(HttpResponse *res, char *name, char *value)
+{
+    if (res->header_count >= MAX_HEADERS)
+    {
+        printf("Header limit reached.\n");
+        return;
+    }
+    if (name == NULL || value == NULL)
+    {
+        printf("Invalid header.\n");
+        return;
+    }
+
+    res->headers[res->header_count].name = strdup(name);
+    res->headers[res->header_count].value = strdup(value);
+    res->header_count++;
+    return;
+}
+
+// Build the HTTP request
+// ---------------------
+// POST / HTTP/1.1\r\n             | Request line
+// Host: localhost\r\n             | Headers
+// Content-Length: 13\r\n          |
+// Content-Type: text/plain\r\n    |
+// \r\n                            |
+// Hello, World!                   | Body
 char *build_http_request(HttpRequest *req)
 {
     // Calculate the size needed for the request
-    size_t size = strlen(req->method) + strlen(req->path) + strlen(req->host) + 100; // Extra space for headers and formatting
-    size_t body_length = 0;
+    size_t size = 0;
+    size += strlen(req->method) + 1 + strlen(req->path) + 1 + strlen(req->version) + 2; // \r\n
+    for (int i = 0; i < req->header_count; i++) {
+        size += strlen(req->headers[i].name) + 2 + strlen(req->headers[i].value) + 2; // "Name: Value\r\n"
+    }
+    size += 2; // blank line after headers
+    size += strlen(req->body); 
+    size += 1; // null terminator
 
-    if (req->body[0] != '\0') // Check if body is not empty
-    {
-        body_length = strlen(req->body); // Get the length of the body
-        size += body_length;             // Add the body length to the total size
+    if (size > MAX_HTTP_REQUEST_SIZE){
+        printf("reqest to large");
+        return NULL;
     }
 
     // Allocate memory for request
@@ -18,99 +69,87 @@ char *build_http_request(HttpRequest *req)
     {
         return NULL;
     }
+    
+    // request line
+    size_t offset = 0;
+    offset += snprintf(request + offset, size - offset, "%s %s %s\r\n", req->method, req->path, req->version);
 
-    // Build the HTTP request
-    // ---------------------
-    // POST / HTTP/1.1\r\n
-    // Host: localhost\r\n
-    // \r\n
-    // "Content-Length: 13"
-    // \r\n
-    // Hello, World!
-    snprintf(request, size,
-             "%s %s %s\r\n"
-             "Host: %s\r\n",
-             req->method, req->path, req->version, req->host);
+    // Headers
+    for (int i = 0; i < req->header_count; i++) {
+        offset += snprintf(request + offset, size - offset, "%s: %s\r\n", req->headers[i].name, req->headers[i].value);
+    }
 
-    // Add body if provided
-    if (req->body[0] != '\0' && body_length > 0) // Check if body is not empty
-    {
-        // Create Content-Length header dynamically based on body length
-        char content_length[64];
-        snprintf(content_length, sizeof(content_length),
-                 "Content-Length: %zu\r\n\r\n",
-                 body_length);
+    offset += snprintf(request + offset, size - offset, "\r\n");
 
-        // Append Content-Length header to the request
-        strncat(request, content_length, size - strlen(request) - 1);
-
-        // Append the actual body to the request
-        strncat(request, req->body, size - strlen(request) - 1);
+    // body
+    if (strlen(req->body) > 0) {
+        strncat(request + offset, req->body, size - offset - 1);
     }
     else
     {
-        strncat(request, "\r\n", size - strlen(request) - 1);
+        strncat(request + offset, "\r\n", size - offset - 1);
     }
 
     return request;
 }
 
-HttpRequest *parse_http_request(const char *request_str)
+void free_http_request(HttpRequest *req) {
+    for (int i = 0; i < req->header_count; ++i) {
+        free(req->headers[i].name);
+        free(req->headers[i].value);
+    }
+    return;
+}
+
+HttpRequest *parse_http_request(char *request_str)
 {
     HttpRequest *req = malloc(sizeof(HttpRequest));
-    if (!req)
-        return NULL;
-    memset(req, 0, sizeof(HttpRequest));
+    if (!req) return NULL;
+    req->header_count = 0;
 
-    // Parse the request line (e.g., POST /path HTTP/1.1)\r\n
-    const char *line_end = strstr(request_str, "\r\n");
-    if (!line_end)
-        return req;
-    char request_line[512] = {0};
-    size_t line_len = line_end - request_str;
-    if (line_len >= sizeof(request_line))
-        line_len = sizeof(request_line) - 1;
-    strncpy(request_line, request_str, line_len);
+    char *pos = request_str; // pointer traverse through that string (set to string start)
 
-    // Parse method, path, version
-    sscanf(request_line, "%7s %255s %15s", req->method, req->path, req->version);
+    // Parse request line: METHOD PATH VERSION\r\n
+    sscanf(pos, "%s %s %s\r\n", req->method, req->path, req->version);
+    pos = strstr(pos, "\r\n") + 2;
 
-    // Find Host header
-    const char *host_hdr = strstr(request_str, "Host: ");
-    if (host_hdr)
+    // Parse headers
+    while (pos && !(pos[0] == '\r' && pos[1] == '\n'))
     {
-        host_hdr += 6; // skip "Host: "
-        const char *host_end = strstr(host_hdr, "\r\n");
-        if (host_end)
-        {
-            size_t host_len = host_end - host_hdr;
-            if (host_len >= MAX_HOST_SIZE)
-                host_len = MAX_HOST_SIZE - 1;
-            strncpy(req->host, host_hdr, host_len);
-            req->host[host_len] = '\0';
+        if (req->header_count >= MAX_HEADERS) {
+            printf("Header limit reached\n");
+            break;
         }
+
+        char name[128], value[512];
+
+        sscanf(pos, "%[^:]: %[^\r\n]\r\n", name, value);
+                
+        add_req_header(req, name, value);
+
+        pos = strstr(pos, "\r\n") + 2; // add len of line to position
     }
+    
+    // Skip the blank line (\r\n) before body
+    pos += 2;
 
-    // Only look for a body if method is not GET or DELETE
-    if (strcmp(req->method, "GET") != 0 && strcmp(req->method, "DELETE") != 0)
+    // Only look for a body if method is POST, PUT
+    if (strcmp(req->method, "POST") == 0 || strcmp(req->method, "PUT") == 0)
     {
-        // Find the end of headers ("\r\n\r\n")
-        const char *body_start = strstr(request_str, "\r\n\r\n");
-        if (body_start)
-        {
-            body_start += 4; // skip past "\r\n\r\n"
-            size_t body_len = strlen(body_start);
-            if (body_len >= MAX_BODY_SIZE)
-                body_len = MAX_BODY_SIZE - 1;
-            strncpy(req->body, body_start, body_len);
-            req->body[body_len] = '\0';
-        }
+        // Copy body
+        strncpy(req->body, pos, MAX_BODY_SIZE - 1);
+        req->body[MAX_BODY_SIZE - 1] = '\0';
     }
 
     return req;
 }
 
-char *build_http_response(HttpRequest *req)
+
+char *build_http_response(HttpResponse *res)
 {
     return NULL;
+}
+
+void free_http_response(HttpResponse *res){
+    return;
 }

@@ -44,14 +44,22 @@ int run_client()
     HttpRequest httpreq = {
         .method = "POST",
         .path = "/",
-        .host = "localhost",
         .version = "HTTP/1.1",
-        .body = "this is a test body"};
+        .header_count = 0,
+        .body = "body body body"};
+
+    add_req_header(&httpreq, "Host", "localhost");
+    add_req_header(&httpreq, "Content-Type", "text/plain");
+
+    char length_str[16];
+    sprintf(length_str, "%zu", strlen(httpreq.body));
+    add_req_header(&httpreq, "Content-Length", length_str);
 
     char *req = build_http_request(&httpreq);
+    free_http_request(&httpreq);
     send(sock, req, strlen(req), 0);
-
     printf("\nRequest: \n%s\n", req);
+    free(req);
 
     // Step 5: Read server response (if any)
     int valread = read(sock, buffer, 1024);

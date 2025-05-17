@@ -66,7 +66,7 @@ int start_server()
         printf("Connection accepted.\n");
 
         // Buffer to store the request
-        char buffer[4096] = {0}; // 4KB buffer
+        char buffer[MAX_HTTP_REQUEST_SIZE] = {0};
 
         // Read the incoming request
         int valread = read(new_socket, buffer, sizeof(buffer) - 1);
@@ -76,16 +76,38 @@ int start_server()
             close(new_socket);
             exit(EXIT_FAILURE);
         }
+
         HttpRequest *parsed_http_req = parse_http_request(buffer);
 
         if (parsed_http_req == NULL)
         {
-            perror("❌ res pars failed");
+            perror("❌ req pars failed");
             close(new_socket);
             exit(EXIT_FAILURE);
         }
 
-        // const char *http_response = build_http_response(parsed_http_req);
+        // print requrst
+        printf("\nRequest print\n\n");
+        printf("method: %s\n", parsed_http_req->method);
+        printf("path: %s\n", parsed_http_req->path);
+        printf("version: %s\n", parsed_http_req->version);
+        printf("\n(%d) Headers:\n\n", parsed_http_req->header_count);
+        int count = parsed_http_req->header_count;
+        for (int i = 0; i < count; i++)
+        {
+            printf("%s: %s\n", parsed_http_req->headers[i].name,parsed_http_req->headers[i].value);
+        }
+        
+        printf("\nbody: %s\n", parsed_http_req->body);
+
+        // const char *http_response = build_http_response(&parsed_http_req);
+        // if (http_response == NULL)
+        // {
+        //     perror("❌ res build failed");
+        //     close(new_socket);
+        //     exit(EXIT_FAILURE);
+        // }
+
         // write(new_socket, http_response, strlen(http_response));
         // printf("Response sent.\n");
 
