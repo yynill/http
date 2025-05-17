@@ -86,20 +86,9 @@ int start_server()
             exit(EXIT_FAILURE);
         }
 
-        // print requrst
-        printf("\nRequest print\n\n");
-        printf("method: %s\n", parsed_http_req->method);
-        printf("path: %s\n", parsed_http_req->path);
-        printf("version: %s\n", parsed_http_req->version);
-        printf("\n(%d) Headers:\n\n", parsed_http_req->header_count);
-        int count = parsed_http_req->header_count;
-        for (int i = 0; i < count; i++)
-        {
-            printf("%s: %s\n", parsed_http_req->headers[i].name,parsed_http_req->headers[i].value);
-        }
-        
-        printf("\nbody: %s\n", parsed_http_req->body);
-
+        print_http_request(parsed_http_req);
+        HttpResponse *serv_res = handle_request(parsed_http_req);
+        print_http_response(serv_res);
         // const char *http_response = build_http_response(&parsed_http_req);
         // if (http_response == NULL)
         // {
@@ -117,6 +106,116 @@ int start_server()
     // Close the server socket (after done listening)
     close(server_fd);
     return 0;
+}
+
+HttpResponse *handle_request(HttpRequest *req)
+{
+    if (req == NULL)
+    {
+        return make_error_response(500, "req null", "");
+    }
+
+    char file_path[MAX_PATH_SIZE];
+
+    // Remove leading slash from path if necessary
+    char *path = req->path;
+    if (path[0] != '/')
+    {
+        return make_error_response(500, "path mus start wich leading '/'", "");
+    }
+
+    // Build file path string
+    snprintf(file_path, sizeof(file_path), "z_server_files%s.json", path); // server/...
+
+    if (strcmp(req->method, "GET") == 0)
+    {
+        return handle_get(req, file_path);
+    }
+    else if (strcmp(req->method, "POST") == 0)
+    {
+        return handle_post(req, file_path);
+    }
+    else if (strcmp(req->method, "PUT") == 0)
+    {
+        return handle_put(req, file_path);
+    }
+    else if (strcmp(req->method, "DELETE") == 0)
+    {
+        return handle_delete(req, file_path);
+    }
+    else
+    {
+        return make_error_response(500, "Unknown Method", "");
+    }
+    return make_error_response(500, "unknown server errror", "");
+}
+
+HttpResponse *handle_post(HttpRequest *req, char *file_path)
+{
+    const char *new_content = req->body;
+
+    FILE *file = fopen(file_path, "w");
+    if (file == NULL)
+    {
+        perror("Could not open file for writing");
+
+        HttpResponse *res = malloc(sizeof(HttpResponse));
+        *res = (HttpResponse){
+            .version = "HTTP/1.1",
+            .status_code = 500,
+            .status_text = "Internal Server Error",
+            .header_count = 0};
+        snprintf(res->body, MAX_BODY_SIZE, "Could not open file for writing");
+        return res;
+    }
+
+    fprintf(file, "%s", new_content);
+    fclose(file);
+
+    HttpResponse *res = malloc(sizeof(HttpResponse));
+    *res = (HttpResponse){
+        .version = "HTTP/1.1",
+        .status_code = 200,
+        .status_text = "OK",
+        .header_count = 0};
+    snprintf(res->body, MAX_BODY_SIZE, "Data successfully written.");
+    return res;
+}
+
+HttpResponse *handle_get(HttpRequest *req, char *file_path)
+{
+    HttpResponse *res = malloc(sizeof(HttpResponse));
+    *res = (HttpResponse){
+        .version = "HTTP/1.1",
+        .status_code = 200,
+        .status_text = "OK",
+        .header_count = 0};
+    snprintf(res->body, MAX_BODY_SIZE, "todo");
+    return res;
+}
+
+HttpResponse *handle_delete(HttpRequest *req, char *file_path)
+{
+    HttpResponse *res = malloc(sizeof(HttpResponse));
+    *res = (HttpResponse){
+        .version = "HTTP/1.1",
+        .status_code = 200,
+        .status_text = "OK",
+        .header_count = 0};
+    snprintf(res->body, MAX_BODY_SIZE, "todo");
+    return res;
+}
+
+HttpResponse *handle_put(HttpRequest *req, char *file_path)
+{
+    HttpResponse *res = malloc(sizeof(HttpResponse));
+    *res = (HttpResponse){
+        .version = "HTTP/1.1",
+        .status_code = 200,
+        .status_text = "OK",
+        .header_count = 0};
+    snprintf(res->body, MAX_BODY_SIZE, "todo");
+    return res;
 }
 
 int main()

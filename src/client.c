@@ -43,10 +43,11 @@ int run_client()
     // Step 4: Send a message to the server
     HttpRequest httpreq = {
         .method = "POST",
-        .path = "/",
+        .path = "/database",
         .version = "HTTP/1.1",
         .header_count = 0,
-        .body = "body body body"};
+        .body = "{ \"id\": 1, \"name\": \"Ferdi\", \"value\": \"cool\" }"
+    };
 
     add_req_header(&httpreq, "Host", "localhost");
     add_req_header(&httpreq, "Content-Type", "text/plain");

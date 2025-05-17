@@ -51,14 +51,16 @@ char *build_http_request(HttpRequest *req)
     // Calculate the size needed for the request
     size_t size = 0;
     size += strlen(req->method) + 1 + strlen(req->path) + 1 + strlen(req->version) + 2; // \r\n
-    for (int i = 0; i < req->header_count; i++) {
+    for (int i = 0; i < req->header_count; i++)
+    {
         size += strlen(req->headers[i].name) + 2 + strlen(req->headers[i].value) + 2; // "Name: Value\r\n"
     }
     size += 2; // blank line after headers
-    size += strlen(req->body); 
+    size += strlen(req->body);
     size += 1; // null terminator
 
-    if (size > MAX_HTTP_REQUEST_SIZE){
+    if (size > MAX_HTTP_REQUEST_SIZE)
+    {
         printf("reqest to large");
         return NULL;
     }
@@ -69,20 +71,22 @@ char *build_http_request(HttpRequest *req)
     {
         return NULL;
     }
-    
+
     // request line
     size_t offset = 0;
     offset += snprintf(request + offset, size - offset, "%s %s %s\r\n", req->method, req->path, req->version);
 
     // Headers
-    for (int i = 0; i < req->header_count; i++) {
+    for (int i = 0; i < req->header_count; i++)
+    {
         offset += snprintf(request + offset, size - offset, "%s: %s\r\n", req->headers[i].name, req->headers[i].value);
     }
 
     offset += snprintf(request + offset, size - offset, "\r\n");
 
     // body
-    if (strlen(req->body) > 0) {
+    if (strlen(req->body) > 0)
+    {
         strncat(request + offset, req->body, size - offset - 1);
     }
     else
@@ -93,8 +97,10 @@ char *build_http_request(HttpRequest *req)
     return request;
 }
 
-void free_http_request(HttpRequest *req) {
-    for (int i = 0; i < req->header_count; ++i) {
+void free_http_request(HttpRequest *req)
+{
+    for (int i = 0; i < req->header_count; ++i)
+    {
         free(req->headers[i].name);
         free(req->headers[i].value);
     }
@@ -104,7 +110,8 @@ void free_http_request(HttpRequest *req) {
 HttpRequest *parse_http_request(char *request_str)
 {
     HttpRequest *req = malloc(sizeof(HttpRequest));
-    if (!req) return NULL;
+    if (!req)
+        return NULL;
     req->header_count = 0;
 
     char *pos = request_str; // pointer traverse through that string (set to string start)
@@ -116,7 +123,8 @@ HttpRequest *parse_http_request(char *request_str)
     // Parse headers
     while (pos && !(pos[0] == '\r' && pos[1] == '\n'))
     {
-        if (req->header_count >= MAX_HEADERS) {
+        if (req->header_count >= MAX_HEADERS)
+        {
             printf("Header limit reached\n");
             break;
         }
@@ -124,12 +132,12 @@ HttpRequest *parse_http_request(char *request_str)
         char name[128], value[512];
 
         sscanf(pos, "%[^:]: %[^\r\n]\r\n", name, value);
-                
+
         add_req_header(req, name, value);
 
         pos = strstr(pos, "\r\n") + 2; // add len of line to position
     }
-    
+
     // Skip the blank line (\r\n) before body
     pos += 2;
 
@@ -144,12 +152,72 @@ HttpRequest *parse_http_request(char *request_str)
     return req;
 }
 
+void print_http_request(HttpRequest *req)
+{
+    if (req == NULL)
+    {
+        printf("Failed to print req");
+        return;
+    }
+
+    printf("\nRequest print\n\n");
+    printf("method: %s\n", req->method);
+    printf("path: %s\n", req->path);
+    printf("version: %s\n", req->version);
+    printf("\n(%d) Headers:\n\n", req->header_count);
+    int count = req->header_count;
+    for (int i = 0; i < count; i++)
+    {
+        printf("%s: %s\n", req->headers[i].name, req->headers[i].value);
+    }
+    printf("\nbody: %s\n", req->body);
+}
 
 char *build_http_response(HttpResponse *res)
 {
     return NULL;
 }
 
-void free_http_response(HttpResponse *res){
+void free_http_response(HttpResponse *res)
+{
     return;
+}
+
+HttpResponse *make_error_response(int status_code, const char *status_text, const char *body_message)
+{
+    HttpResponse *res = malloc(sizeof(HttpResponse));
+    if (res == NULL)
+    {
+        perror("Failed to allocate HttpResponse");
+        exit(1);
+    }
+    *res = (HttpResponse){
+        .version = "HTTP/1.1",
+        .status_code = status_code,
+        .header_count = 0};
+    strncpy(res->status_text, status_text, sizeof(res->status_text) - 1);
+    res->status_text[sizeof(res->status_text) - 1] = '\0';
+    snprintf(res->body, MAX_BODY_SIZE, "%s", body_message);
+    return res;
+}
+
+void print_http_response(HttpResponse *res)
+{
+    if (res == NULL)
+    {
+        printf("Failed to print res");
+        return;
+    }
+
+    printf("\nResponse print\n\n");
+    printf("version: %s\n", res->version);
+    printf("status code: %d\n", res->status_code);
+    printf("status text: %s\n", res->status_text);
+    printf("\n(%d) Headers:\n\n", res->header_count);
+    int count = res->header_count;
+    for (int i = 0; i < count; i++)
+    {
+        printf("%s: %s\n", res->headers[i].name, res->headers[i].value);
+    }
+    printf("body: %s\n", res->body);
 }

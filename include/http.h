@@ -34,11 +34,11 @@ typedef struct
 
 typedef struct
 {
+    char version[MAX_VERSION_SIZE]; // e.g., "HTTP/1.1"
     int status_code;                // e.g., 200, 404, 500
     char status_text[64];           // e.g., "OK", "Not Found"
-    char version[MAX_VERSION_SIZE]; // e.g., "HTTP/1.1"
-    Header headers[MAX_HEADERS];    // header
     int header_count;               // Number of headers
+    Header headers[MAX_HEADERS];    // header
     char body[MAX_BODY_SIZE];       // Response body
 } HttpResponse;
 
@@ -49,8 +49,11 @@ void add_res_header(HttpResponse *res, char *name, char *value);
 char *build_http_request(HttpRequest *req);
 void free_http_request(HttpRequest *req);
 HttpRequest *parse_http_request(char *request_str);
+void print_http_request(HttpRequest *req);
 
 char *build_http_response(HttpResponse *res);
 void free_http_response(HttpResponse *res);
+void print_http_response(HttpResponse *res);
+HttpResponse *make_error_response(int status_code, const char *status_text, const char *body_message);
 
 #endif // HTTP_H
