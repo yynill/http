@@ -25,7 +25,14 @@ int start_server()
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == 0)
     {
-        perror("❌ soceket failure");
+        perror("❌ socket failure");
+        exit(EXIT_FAILURE);
+    }
+
+    int opt = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+    {
+        perror("❌ setsockopt failed");
         exit(EXIT_FAILURE);
     }
     printf("Socket created.\n");
@@ -60,7 +67,7 @@ int start_server()
         int new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
         if (new_socket < 0)
         {
-            perror("❌accept failed");
+            perror("❌ accept failed");
             exit(EXIT_FAILURE);
         }
         printf("Connection accepted.\n");
@@ -87,18 +94,19 @@ int start_server()
         }
 
         print_http_request(parsed_http_req);
-        HttpResponse *serv_res = handle_request(parsed_http_req);
-        print_http_response(serv_res);
-        // const char *http_response = build_http_response(&parsed_http_req);
-        // if (http_response == NULL)
-        // {
-        //     perror("❌ res build failed");
-        //     close(new_socket);
-        //     exit(EXIT_FAILURE);
-        // }
+        HttpResponse *res = handle_request(parsed_http_req);
+        print_http_response(res);
+        
+        const char *http_response = build_http_response(res);
+        if (http_response == NULL)
+        {
+            perror("❌ res build failed");
+            close(new_socket);
+            exit(EXIT_FAILURE);
+        }
 
-        // write(new_socket, http_response, strlen(http_response));
-        // printf("Response sent.\n");
+        write(new_socket, http_response, strlen(http_response));
+        printf("Response sent.\n");
 
         // Close the new socket
         close(new_socket);
@@ -125,7 +133,7 @@ HttpResponse *handle_request(HttpRequest *req)
     }
 
     // Build file path string
-    snprintf(file_path, sizeof(file_path), "z_server_files%s.json", path); // server/...
+    snprintf(file_path, sizeof(file_path), "z_server_files%s", path); // server/...
 
     if (strcmp(req->method, "GET") == 0)
     {
@@ -157,16 +165,7 @@ HttpResponse *handle_post(HttpRequest *req, char *file_path)
     FILE *file = fopen(file_path, "w");
     if (file == NULL)
     {
-        perror("Could not open file for writing");
-
-        HttpResponse *res = malloc(sizeof(HttpResponse));
-        *res = (HttpResponse){
-            .version = "HTTP/1.1",
-            .status_code = 500,
-            .status_text = "Internal Server Error",
-            .header_count = 0};
-        snprintf(res->body, MAX_BODY_SIZE, "Could not open file for writing");
-        return res;
+        return make_error_response(500, "Could not open file for writing", "");
     }
 
     fprintf(file, "%s", new_content);
@@ -184,15 +183,28 @@ HttpResponse *handle_post(HttpRequest *req, char *file_path)
 
 HttpResponse *handle_get(HttpRequest *req, char *file_path)
 {
+    FILE *file = fopen(file_path, "r");
+    if (file == NULL)
+    {
+        return make_error_response(500, "Could not open file for reading", "");
+    }
+
     HttpResponse *res = malloc(sizeof(HttpResponse));
     *res = (HttpResponse){
         .version = "HTTP/1.1",
         .status_code = 200,
         .status_text = "OK",
-        .header_count = 0};
-    snprintf(res->body, MAX_BODY_SIZE, "todo");
+        .header_count = 0,
+    };
+
+    // Read file content into body
+    size_t bytes_read = fread(res->body, 1, MAX_BODY_SIZE - 1, file);
+    res->body[bytes_read] = '\0'; // Null-terminate
+
+    fclose(file);
     return res;
 }
+
 
 HttpResponse *handle_delete(HttpRequest *req, char *file_path)
 {

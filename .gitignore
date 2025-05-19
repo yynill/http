@@ -1,10 +1,4 @@
 *.o
 
-/obj/
 /obj
-
-Makefile
-*.o
-client
-server
-*.o
+/bin
