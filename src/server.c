@@ -9,7 +9,7 @@
 
 int server_fd; // Make this global so the signal handler can access it
 
-// server won’t leave open sockets behind when Ctrl+C out
+// server won't leave open sockets behind when Ctrl+C out
 void handle_sigint()
 {
     printf("\nCaught SIGINT, shutting down server.\n");
@@ -58,7 +58,7 @@ int start_server()
         perror("❌listen failed");
         exit(EXIT_FAILURE);
     }
-    printf("Listening for incoming connections...\n");
+    printf("Listening for incoming connections...\n\n");
 
     // Persistent server loop
     while (1)
@@ -84,6 +84,7 @@ int start_server()
             exit(EXIT_FAILURE);
         }
 
+        printf("%s\n\n", buffer);
         HttpRequest *parsed_http_req = parse_http_request(buffer);
 
         if (parsed_http_req == NULL)
@@ -93,11 +94,12 @@ int start_server()
             exit(EXIT_FAILURE);
         }
 
-        print_http_request(parsed_http_req);
+        // print_http_request(parsed_http_req);
         HttpResponse *res = handle_request(parsed_http_req);
-        print_http_response(res);
-        
-        const char *http_response = build_http_response(res);
+        // print_http_response(res);
+
+        char *http_response = build_http_response(res);
+        printf("Response print: \n %s\n", http_response);
         if (http_response == NULL)
         {
             perror("❌ res build failed");
@@ -161,6 +163,10 @@ HttpResponse *handle_request(HttpRequest *req)
 HttpResponse *handle_post(HttpRequest *req, char *file_path)
 {
     const char *new_content = req->body;
+    if (new_content == NULL)
+    {
+        return make_error_response(400, "No content provided", "");
+    }
 
     FILE *file = fopen(file_path, "w");
     if (file == NULL)
@@ -181,12 +187,25 @@ HttpResponse *handle_post(HttpRequest *req, char *file_path)
     return res;
 }
 
+int file_exists(const char *path)
+{
+    FILE *file = fopen(path, "r");
+    if (file)
+    {
+        fclose(file);
+        return 1;
+    }
+    return 0;
+}
+
 HttpResponse *handle_get(HttpRequest *req, char *file_path)
 {
     FILE *file = fopen(file_path, "r");
     if (file == NULL)
+
+    if (!file_exists(file_path))
     {
-        return make_error_response(500, "Could not open file for reading", "");
+        return make_error_response(404, "File not found", "");
     }
 
     HttpResponse *res = malloc(sizeof(HttpResponse));

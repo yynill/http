@@ -81,7 +81,6 @@ char *build_http_request(HttpRequest *req)
     {
         offset += snprintf(request + offset, size - offset, "%s: %s\r\n", req->headers[i].name, req->headers[i].value);
     }
-
     offset += snprintf(request + offset, size - offset, "\r\n");
 
     // body
@@ -170,12 +169,60 @@ void print_http_request(HttpRequest *req)
     {
         printf("%s: %s\n", req->headers[i].name, req->headers[i].value);
     }
-    printf("\nbody: %s\n", req->body);
+    printf("\nbody: %s\n\n", req->body);
 }
 
+// http responde format
+// ------------------------------------------------
+// HTTP/1.1 200 OK\r\n                          | Status line
+// Content-Type: text/html; charset=UTF-8\r\n   | Headers
+// Content-Length: 70\r\n                       | 
+// \r\n                                         |
+// <html>\r\n                                   | Body
+//   <head><title>Example</title></head>\r\n    |
+//   <body>Hello World</body>\r\n               |
+// </html>\r\n                                  |
 char *build_http_response(HttpResponse *res)
 {
-    return NULL;
+   // calculate size
+    size_t size = 0; 
+    size += 3 + 1 + strlen(res->status_text) + 1 + strlen(res->version) + 2; // sttus code always 3 long  - \r\n 2 long
+    for (int i = 0; i < res->header_count; i++)
+    {
+        size += strlen(res->headers[i].name) + 2 + strlen(res->headers[i].value) + 2;
+    }
+    size += 2; // blank line after headers
+    size += strlen(res->body);
+    size += 1; // null terminator
+
+    // allocate mem
+    char *response = (char *)malloc(size);
+    if (!response){
+        return NULL;
+    }
+
+    size_t offset = 0;
+    // status line 
+    offset += snprintf(response + offset, size - offset, "%s %d %s\r\n", res->version, res->status_code, res->status_text);
+
+    // Headers
+    for (int i = 0; i < res->header_count; i++)
+    {
+        offset += snprintf(response + offset, size - offset, "%s: %s\r\n", res->headers[i].name, res->headers[i].value);
+    }
+    offset += snprintf(response + offset, size - offset, "\r\n");
+
+        // body
+    if (strlen(res->body) > 0)
+    {
+        strncat(response + offset, res->body, size - offset - 1);
+    }
+    else
+    {
+        strncat(response + offset, "\r\n", size - offset - 1);
+    }
+
+    return response;
 }
 
 void free_http_response(HttpResponse *res)
@@ -219,5 +266,35 @@ void print_http_response(HttpResponse *res)
     {
         printf("%s: %s\n", res->headers[i].name, res->headers[i].value);
     }
-    printf("body: %s\n", res->body);
+    printf("body: %s\n\n", res->body);
+}
+
+// mime stands for Multipurpose Internet Mail Extensions
+char *get_mime_type(char *path) {
+    // Find the last dot in the path
+    char *ext = strrchr(path, '.');
+    if (!ext) {
+        return "application/octet-stream";
+    }
+
+    // Compare extension and return appropriate MIME type
+    if (strcmp(ext, ".html") == 0) return "text/html";
+    if (strcmp(ext, ".htm") == 0) return "text/html";
+    if (strcmp(ext, ".css") == 0) return "text/css";
+    if (strcmp(ext, ".txt") == 0) return "text/plain";
+    if (strcmp(ext, ".js") == 0) return "application/javascript";
+    if (strcmp(ext, ".json") == 0) return "application/json";
+    if (strcmp(ext, ".png") == 0) return "image/png";
+    if (strcmp(ext, ".jpg") == 0) return "image/jpeg";
+    if (strcmp(ext, ".jpeg") == 0) return "image/jpeg";
+    if (strcmp(ext, ".gif") == 0) return "image/gif";
+    if (strcmp(ext, ".svg") == 0) return "image/svg+xml";
+    if (strcmp(ext, ".webp") == 0) return "image/webp";
+    if (strcmp(ext, ".ico") == 0) return "image/x-icon";
+    if (strcmp(ext, ".mp3") == 0) return "audio/mpeg";
+    if (strcmp(ext, ".wav") == 0) return "audio/wav";
+    if (strcmp(ext, ".mp4") == 0) return "video/mp4";
+    if (strcmp(ext, ".pdf") == 0) return "application/pdf";
+
+    return "application/octet-stream";
 }

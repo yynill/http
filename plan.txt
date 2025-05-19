@@ -25,3 +25,12 @@
 Clean Error Handling and Logging
 Test in browser
 Test with curl
+
+
+--------------------------
+
+## run
+
+make
+./bin/server
+./bin/client

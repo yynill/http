@@ -45,6 +45,7 @@ typedef struct
 // functions
 void add_req_header(HttpRequest *req, char *name, char *value);
 void add_res_header(HttpResponse *res, char *name, char *value);
+char *get_mime_type(char *path);
 
 char *build_http_request(HttpRequest *req);
 void free_http_request(HttpRequest *req);
@@ -53,7 +54,7 @@ void print_http_request(HttpRequest *req);
 
 char *build_http_response(HttpResponse *res);
 void free_http_response(HttpResponse *res);
-void print_http_response(HttpResponse *res);
 HttpResponse *make_error_response(int status_code, const char *status_text, const char *body_message);
+void print_http_response(HttpResponse *res);
 
 #endif // HTTP_H
