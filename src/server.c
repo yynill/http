@@ -139,7 +139,7 @@ HttpResponse *handle_request(HttpRequest *req)
 
     if (strcmp(req->method, "GET") == 0)
     {
-        return handle_get(req, file_path);
+        return handle_get(file_path);
     }
     else if (strcmp(req->method, "POST") == 0)
     {
@@ -198,16 +198,14 @@ int file_exists(const char *path)
     return 0;
 }
 
-HttpResponse *handle_get(HttpRequest *req, char *file_path)
-{
-    FILE *file = fopen(file_path, "r");
-    if (file == NULL)
 
+HttpResponse *handle_get(char *file_path)
+{
     if (!file_exists(file_path))
     {
         return make_error_response(404, "File not found", "");
     }
-
+    
     HttpResponse *res = malloc(sizeof(HttpResponse));
     *res = (HttpResponse){
         .version = "HTTP/1.1",
@@ -216,14 +214,46 @@ HttpResponse *handle_get(HttpRequest *req, char *file_path)
         .header_count = 0,
     };
 
-    // Read file content into body
-    size_t bytes_read = fread(res->body, 1, MAX_BODY_SIZE - 1, file);
-    res->body[bytes_read] = '\0'; // Null-terminate
+    char *  mime = get_mime_type(file_path);
+    FILE *file = NULL;
+    size_t bytes_read = 0;
+
+    if (strncmp(mime, "text/", 5) == 0)
+    {
+        file = fopen(file_path, "r");
+    }
+    else if (strncmp(mime, "image/", 6) == 0)  
+    {
+        file = fopen(file_path, "rb"); // open in binary 
+    }
+    
+    if (file == NULL)
+    {
+        return make_error_response(500, "Could not open file for reading", "");
+    }          
+
+    // Read file
+    bytes_read = fread(res->body, 1, MAX_BODY_SIZE - 1, file);
+    
+    if (MAX_BODY_SIZE  -1 == bytes_read)
+    {
+       return make_error_response(500, "File too large for response body", ""); // TODO: look up how real servers do this
+    }
 
     fclose(file);
+    
+    if (strncmp(mime, "text/", 5) == 0)
+    {
+        // Null-terminate only for text files
+        res->body[bytes_read] = '\0';
+    }
+    else
+    {
+        // For binary, just keep raw bytes, no null termination
+    }
+
     return res;
 }
-
 
 HttpResponse *handle_delete(HttpRequest *req, char *file_path)
 {

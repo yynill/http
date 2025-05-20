@@ -9,7 +9,7 @@
 int start_server();
 
 HttpResponse *handle_request(HttpRequest *req);
-HttpResponse *handle_get(HttpRequest *req, char *file_path);
+HttpResponse *handle_get(char *file_path);
 HttpResponse *handle_delete(HttpRequest *req, char *file_path);
 HttpResponse *handle_post(HttpRequest *req, char *file_path);
 HttpResponse *handle_put(HttpRequest *req, char *file_path);
