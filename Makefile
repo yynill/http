@@ -4,7 +4,7 @@ SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
 
-SERVER_SRC = $(SRC_DIR)/server.c $(SRC_DIR)/http.c
+SERVER_SRC = $(SRC_DIR)/server.c $(SRC_DIR)/http.c $(SRC_DIR)/db.c $(SRC_DIR)/api.c
 CLIENT_SRC = $(SRC_DIR)/client.c $(SRC_DIR)/http.c
 
 SERVER_OBJ = $(SERVER_SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
@@ -21,11 +21,11 @@ all: $(SERVER_TARGET) $(CLIENT_TARGET)
 
 # Server executable
 $(SERVER_TARGET): $(SERVER_OBJ)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -lsqlite3 -o $@
 
 # Client executable
 $(CLIENT_TARGET): $(CLIENT_OBJ)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -lsqlite3 -o $@
 
 # Compile source to object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c

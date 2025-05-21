@@ -1,0 +1,39 @@
+## run
+
+make
+./bin/server
+./bin/client
+
+✅ display images
+images in chunked transfer encoding (for streaming responses)
+
+currently not sending heasders back to server. idk if i need to but i think it would be helpful for the client side
+
+
+
+
+
+input box / button and sending something to the server
+Handle Multiple Connections 
+Multithreading
+HTTP Keep-Alive und Connection-Handling
+HTTP Cookies
+hot reload 
+Rate Limiting ? 
+
+
+Correctly implement Date headers (RFC 7231 format)
+Properly handle URL decoding
+Single-threaded vs. multi-threaded (one thread per client)
+Connection timeouts and resource limits
+Implement basic IP blacklisting
+Sanitize file paths (prevent directory traversal ../)
+
+
+---------------------------
+
+backedn:    C
+frontend:   html css js 
+db:         sql lite
+
+hot reload

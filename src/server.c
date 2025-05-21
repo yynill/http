@@ -6,8 +6,10 @@
 #include <netinet/in.h>
 #include "../include/shared.h"
 #include "../include/http.h"
+#include "../include/db.h"
+#include "../include/api.h"
 
-int server_fd; // Make this global so the signal handler can access it
+int server_fd;
 
 // server won't leave open sockets behind when Ctrl+C out
 void handle_sigint()
@@ -21,7 +23,7 @@ int start_server()
 {
     printf("Starting HTTP server...\n");
 
-    // Step 1: Create the socket
+    // Create the socket
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == 0)
     {
@@ -37,7 +39,7 @@ int start_server()
     }
     printf("Socket created.\n");
 
-    // Step 2: Bind the socket to an IP address and port
+    // Bind socket to an IP address and port
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
@@ -52,7 +54,7 @@ int start_server()
     }
     printf("Socket bound to port %d.\n", PORT);
 
-    // Step 3: Listen for incoming connections
+    // Listen for incoming connections
     if (listen(server_fd, 3) < 0)
     {
         perror("❌listen failed");
@@ -60,10 +62,10 @@ int start_server()
     }
     printf("Listening for incoming connections...\n\n");
 
-    // Persistent server loop
+    // server loop
     while (1)
     {
-        // Step 4: Accept incoming connections
+        // accept incoming connections
         int new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
         if (new_socket < 0)
         {
@@ -72,10 +74,7 @@ int start_server()
         }
         printf("Connection accepted.\n");
 
-        // Buffer to store the request
         char buffer[MAX_HTTP_REQUEST_SIZE] = {0};
-
-        // Read the incoming request
         int valread = read(new_socket, buffer, sizeof(buffer) - 1);
         if (valread < 0)
         {
@@ -116,8 +115,6 @@ int send_respose(HttpResponse *res,int socket)
 {
     if (res == NULL) return 0;
 
-    // printf("Response print: \n %s\n", http_response);
-    
     if (strncmp(res->body_mime, "text/", 5) == 0)
     {
         char *http_response = build_http_response(res, 1);
@@ -136,6 +133,7 @@ int send_respose(HttpResponse *res,int socket)
         return 0;
     }
 
+    // printf("Response print: \n %s\n", http_response);
     printf("Response sent.\n");
 
     return 1;
@@ -148,66 +146,27 @@ HttpResponse *handle_request(HttpRequest *req)
         return make_error_response(500, "req null", "");
     }
 
-    char file_path[MAX_PATH_SIZE];
-
-    // Remove leading slash from path if necessary
-    char *path = req->path;
-    if (path[0] != '/')
+    if (req->path[0] != '/')
     {
         return make_error_response(500, "path mus start wich leading '/'", "");
     }
 
-    // Build file path string
-    snprintf(file_path, sizeof(file_path), "z_server_files%s", path); // server/...
+    if (strncmp(req->path, "/api/", 5) == 0)
+    {
+        if (strcmp(req->method, "GET") == 0) return handle_get(req);
+        if (strcmp(req->method, "POST") == 0) return handle_post(req);
+        if (strcmp(req->method, "PUT") == 0) return handle_put(req);
+        if (strcmp(req->method, "DELETE") == 0) return handle_delete(req);
 
-    if (strcmp(req->method, "GET") == 0)
-    {
-        return handle_get(file_path);
-    }
-    else if (strcmp(req->method, "POST") == 0)
-    {
-        return handle_post(req, file_path);
-    }
-    else if (strcmp(req->method, "PUT") == 0)
-    {
-        return handle_put(req, file_path);
-    }
-    else if (strcmp(req->method, "DELETE") == 0)
-    {
-        return handle_delete(req, file_path);
+        return make_error_response(500, "Unknown Method", "");
     }
     else
     {
-        return make_error_response(500, "Unknown Method", "");
+        char file_path[MAX_PATH_SIZE];
+        snprintf(file_path, sizeof(file_path), "z_server_files%s", req->path); // server/...
+        printf("🟠 filepath: %s", file_path);
+        return handle_file_request(file_path);
     }
-    return make_error_response(500, "unknown server errror", "");
-}
-
-HttpResponse *handle_post(HttpRequest *req, char *file_path)
-{
-    const char *new_content = req->body;
-    if (new_content == NULL)
-    {
-        return make_error_response(400, "No content provided", "");
-    }
-
-    FILE *file = fopen(file_path, "w");
-    if (file == NULL)
-    {
-        return make_error_response(500, "Could not open file for writing", "");
-    }
-
-    fprintf(file, "%s", new_content);
-    fclose(file);
-
-    HttpResponse *res = malloc(sizeof(HttpResponse));
-    *res = (HttpResponse){
-        .version = "HTTP/1.1",
-        .status_code = 200,
-        .status_text = "OK",
-        .header_count = 0};
-    snprintf(res->body, res->body_size, "Data successfully written.");
-    return res;
 }
 
 int file_exists(const char *path)
@@ -220,15 +179,14 @@ int file_exists(const char *path)
     }
     return 0;
 }
-HttpResponse *handle_get(char *file_path)
+
+HttpResponse *handle_file_request(char *file_path)
 {
-    if (!file_exists(file_path))
-    {
-        return make_error_response(404, "File not found", "");
-    }
+    if (!file_exists(file_path)) return make_error_response(404, "File not found", "");
 
     HttpResponse *res = malloc(sizeof(HttpResponse));
-    if (!res) {
+    if (!res)
+    {
         perror("malloc failed");
         exit(1);
     }
@@ -243,7 +201,6 @@ HttpResponse *handle_get(char *file_path)
     };
     strcpy(res->body_mime, get_mime_type(file_path));
 
-    // Determine open mode
     const char *open_mode = (strncmp(res->body_mime, "text/", 5) == 0) ? "r" : "rb";
 
     FILE *file = fopen(file_path, open_mode);
@@ -277,42 +234,18 @@ HttpResponse *handle_get(char *file_path)
     return res;
 }
 
-
-HttpResponse *handle_delete(HttpRequest *req, char *file_path)
-{
-    printf("%s", file_path);
-    HttpResponse *res = malloc(sizeof(HttpResponse));
-    *res = (HttpResponse){
-        .version = "HTTP/1.1",
-        .status_code = 200,
-        .status_text = "OK",
-        .header_count = 0};
-    snprintf(req->body, res->body_size, "todo");
-    return res;
-}
-
-HttpResponse *handle_put(HttpRequest *req, char *file_path)
-{
-    printf("%s", file_path);
-    HttpResponse *res = malloc(sizeof(HttpResponse));
-    *res = (HttpResponse){
-        .version = "HTTP/1.1",
-        .status_code = 200,
-        .status_text = "OK",
-        .header_count = 0};
-    snprintf(req->body, res->body_size, "todo");
-    return res;
-}
-
 int main()
 {
-    // Register signal handler here
-    signal(SIGINT, handle_sigint);
+    sqlite3 *db;
+    if (db_open(&db) != SQLITE_OK) return 1;
 
+    signal(SIGINT, handle_sigint);
+    
     if (start_server() < 0)
     {
         fprintf(stderr, "Failed to start server\n");
         return 1;
     }
+    db_close(db);
     return 0;
 }

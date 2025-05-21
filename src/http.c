@@ -294,7 +294,7 @@ void print_http_response(HttpResponse *res)
     printf("body_mime: %s\n\n", res->body_mime);
 }
 
-// mime stands for Multipurpose Internet Mail Extensions
+// Multipurpose Internet Mail Extensions
 char *get_mime_type(char *path) {
     // Find the last dot in the path
     char *ext = strrchr(path, '.');

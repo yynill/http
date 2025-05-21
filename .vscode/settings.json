@@ -3,6 +3,7 @@
         "socket.h": "c",
         "stdio.h": "c",
         "shared.h": "c",
-        "http.h": "c"
+        "http.h": "c",
+        "db.h": "c"
     }
 }

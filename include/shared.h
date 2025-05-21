@@ -7,13 +7,10 @@
 
 // server functions
 int start_server();
+int send_respose(HttpResponse *res,int socket);
 
 HttpResponse *handle_request(HttpRequest *req);
-HttpResponse *handle_get(char *file_path);
-HttpResponse *handle_delete(HttpRequest *req, char *file_path);
-HttpResponse *handle_post(HttpRequest *req, char *file_path);
-HttpResponse *handle_put(HttpRequest *req, char *file_path);
-int send_respose(HttpResponse *res,int socket);
+HttpResponse *handle_file_request(char *file_path);
 
 // client functions
 int run_client();
