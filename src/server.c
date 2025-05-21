@@ -98,24 +98,47 @@ int start_server()
         HttpResponse *res = handle_request(parsed_http_req);
         // print_http_response(res);
 
-        char *http_response = build_http_response(res);
-        printf("Response print: \n %s\n", http_response);
-        if (http_response == NULL)
+        int success = send_respose(res, new_socket);
+        if (success == 0)
         {
-            perror("❌ res build failed");
+            perror("❌ res send failed");
             close(new_socket);
             exit(EXIT_FAILURE);
         }
 
-        write(new_socket, http_response, strlen(http_response));
-        printf("Response sent.\n");
-
-        // Close the new socket
         close(new_socket);
     }
-    // Close the server socket (after done listening)
     close(server_fd);
     return 0;
+}
+
+int send_respose(HttpResponse *res,int socket)
+{
+    if (res == NULL) return 0;
+
+    // printf("Response print: \n %s\n", http_response);
+    
+    if (strncmp(res->body_mime, "text/", 5) == 0)
+    {
+        char *http_response = build_http_response(res, 1);
+        if (http_response == NULL) return 0;
+        write(socket, http_response, strlen(http_response));
+    }
+    else if (strncmp(res->body_mime, "image/", 6) == 0)
+    {
+        char *http_response_header = build_http_response(res, 0);
+        if (http_response_header == NULL) return 0;
+        write(socket, http_response_header, strlen(http_response_header));
+        write(socket, res->body, res->body_size);
+    }
+    else
+    {
+        return 0;
+    }
+
+    printf("Response sent.\n");
+
+    return 1;
 }
 
 HttpResponse *handle_request(HttpRequest *req)
@@ -183,7 +206,7 @@ HttpResponse *handle_post(HttpRequest *req, char *file_path)
         .status_code = 200,
         .status_text = "OK",
         .header_count = 0};
-    snprintf(res->body, MAX_BODY_SIZE, "Data successfully written.");
+    snprintf(res->body, res->body_size, "Data successfully written.");
     return res;
 }
 
@@ -197,85 +220,87 @@ int file_exists(const char *path)
     }
     return 0;
 }
-
-
 HttpResponse *handle_get(char *file_path)
 {
     if (!file_exists(file_path))
     {
         return make_error_response(404, "File not found", "");
     }
-    
+
     HttpResponse *res = malloc(sizeof(HttpResponse));
+    if (!res) {
+        perror("malloc failed");
+        exit(1);
+    }
+
     *res = (HttpResponse){
         .version = "HTTP/1.1",
         .status_code = 200,
         .status_text = "OK",
         .header_count = 0,
+        .body = NULL,
+        .body_size = 0,
     };
+    strcpy(res->body_mime, get_mime_type(file_path));
 
-    char *  mime = get_mime_type(file_path);
-    FILE *file = NULL;
-    size_t bytes_read = 0;
+    // Determine open mode
+    const char *open_mode = (strncmp(res->body_mime, "text/", 5) == 0) ? "r" : "rb";
 
-    if (strncmp(mime, "text/", 5) == 0)
-    {
-        file = fopen(file_path, "r");
-    }
-    else if (strncmp(mime, "image/", 6) == 0)  
-    {
-        file = fopen(file_path, "rb"); // open in binary 
-    }
-    
-    if (file == NULL)
+    FILE *file = fopen(file_path, open_mode);
+    if (!file)
     {
         return make_error_response(500, "Could not open file for reading", "");
-    }          
-
-    // Read file
-    bytes_read = fread(res->body, 1, MAX_BODY_SIZE - 1, file);
-    
-    if (MAX_BODY_SIZE  -1 == bytes_read)
-    {
-       return make_error_response(500, "File too large for response body", ""); // TODO: look up how real servers do this
     }
 
+    // Get file size
+    fseek(file, 0, SEEK_END);
+    int filesize = ftell(file);
+    rewind(file);
+
+    res->body_size = filesize;
+    res->body = malloc(res->body_size + 1);  // +1 for '\0' terminator
+    if (!res->body)
+    {
+        perror("malloc failed");
+        fclose(file);
+        exit(1);
+    }
+
+    int bytes_read = fread(res->body, 1, res->body_size, file);
     fclose(file);
-    
-    if (strncmp(mime, "text/", 5) == 0)
+
+    if (strncmp(res->body_mime, "text/", 5) == 0)
     {
-        // Null-terminate only for text files
         res->body[bytes_read] = '\0';
-    }
-    else
-    {
-        // For binary, just keep raw bytes, no null termination
     }
 
     return res;
 }
 
+
 HttpResponse *handle_delete(HttpRequest *req, char *file_path)
 {
+    printf("%s", file_path);
     HttpResponse *res = malloc(sizeof(HttpResponse));
     *res = (HttpResponse){
         .version = "HTTP/1.1",
         .status_code = 200,
         .status_text = "OK",
         .header_count = 0};
-    snprintf(res->body, MAX_BODY_SIZE, "todo");
+    snprintf(req->body, res->body_size, "todo");
     return res;
 }
 
 HttpResponse *handle_put(HttpRequest *req, char *file_path)
 {
+    printf("%s", file_path);
     HttpResponse *res = malloc(sizeof(HttpResponse));
     *res = (HttpResponse){
         .version = "HTTP/1.1",
         .status_code = 200,
         .status_text = "OK",
         .header_count = 0};
-    snprintf(res->body, MAX_BODY_SIZE, "todo");
+    snprintf(req->body, res->body_size, "todo");
     return res;
 }
 

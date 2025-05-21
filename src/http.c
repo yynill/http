@@ -56,7 +56,7 @@ char *build_http_request(HttpRequest *req)
         size += strlen(req->headers[i].name) + 2 + strlen(req->headers[i].value) + 2; // "Name: Value\r\n"
     }
     size += 2; // blank line after headers
-    size += strlen(req->body);
+    size += req->body_size;
     size += 1; // null terminator
 
     if (size > MAX_HTTP_REQUEST_SIZE)
@@ -98,6 +98,7 @@ char *build_http_request(HttpRequest *req)
 
 void free_http_request(HttpRequest *req)
 {
+    free(req->body);
     for (int i = 0; i < req->header_count; ++i)
     {
         free(req->headers[i].name);
@@ -143,9 +144,18 @@ HttpRequest *parse_http_request(char *request_str)
     // Only look for a body if method is POST, PUT
     if (strcmp(req->method, "POST") == 0 || strcmp(req->method, "PUT") == 0)
     {
+        int remaining_char = strlen(pos);
+        req->body_size = remaining_char;
+        req->body = malloc(req->body_size + 1);
+        if (!req->body)
+        {
+            perror("malloc failed");
+            exit(1);
+        }
+
         // Copy body
-        strncpy(req->body, pos, MAX_BODY_SIZE - 1);
-        req->body[MAX_BODY_SIZE - 1] = '\0';
+        memcpy(req->body, pos, req->body_size);
+        req->body[req->body_size] = '\0'; // Nullterminating string
     }
 
     return req;
@@ -155,7 +165,7 @@ void print_http_request(HttpRequest *req)
 {
     if (req == NULL)
     {
-        printf("Failed to print req");
+        printf("Failed to print req\n");
         return;
     }
 
@@ -182,27 +192,29 @@ void print_http_request(HttpRequest *req)
 //   <head><title>Example</title></head>\r\n    |
 //   <body>Hello World</body>\r\n               |
 // </html>\r\n                                  |
-char *build_http_response(HttpResponse *res)
+char *build_http_response(HttpResponse *res, int include_body)
 {
-   // calculate size
-    size_t size = 0; 
+    // calculate size
+    size_t size = 0;
     size += 3 + 1 + strlen(res->status_text) + 1 + strlen(res->version) + 2; // sttus code always 3 long  - \r\n 2 long
     for (int i = 0; i < res->header_count; i++)
     {
         size += strlen(res->headers[i].name) + 2 + strlen(res->headers[i].value) + 2;
     }
     size += 2; // blank line after headers
-    size += strlen(res->body);
+    if (include_body == 1)
+    {
+        size += res->body_size;
+    }
     size += 1; // null terminator
 
     // allocate mem
     char *response = (char *)malloc(size);
-    if (!response){
-        return NULL;
-    }
+    
+    if (!response) return NULL;
 
     size_t offset = 0;
-    // status line 
+    // status line
     offset += snprintf(response + offset, size - offset, "%s %d %s\r\n", res->version, res->status_code, res->status_text);
 
     // Headers
@@ -212,14 +224,19 @@ char *build_http_response(HttpResponse *res)
     }
     offset += snprintf(response + offset, size - offset, "\r\n");
 
-        // body
-    if (strlen(res->body) > 0)
-    {
-        strncat(response + offset, res->body, size - offset - 1);
-    }
-    else
-    {
-        strncat(response + offset, "\r\n", size - offset - 1);
+    // body
+    if (include_body == 1){
+        if (res->body_size > 0) {
+            if (strncmp(res->body_mime, "image/", 6) == 0) {
+                memcpy(response + offset, res->body, res->body_size); // copy binary 
+            } else {
+                strncat(response + offset, res->body, size - offset - 1); // copy string
+            }
+        }
+        else
+        {
+            strncat(response + offset, "\r\n", size - offset - 1);
+        }
     }
 
     return response;
@@ -227,6 +244,12 @@ char *build_http_response(HttpResponse *res)
 
 void free_http_response(HttpResponse *res)
 {
+    free(res->body);
+    for (int i = 0; i < res->header_count; ++i)
+    {
+        free(res->headers[i].name);
+        free(res->headers[i].value);
+    }
     return;
 }
 
@@ -244,7 +267,7 @@ HttpResponse *make_error_response(int status_code, const char *status_text, cons
         .header_count = 0};
     strncpy(res->status_text, status_text, sizeof(res->status_text) - 1);
     res->status_text[sizeof(res->status_text) - 1] = '\0';
-    snprintf(res->body, MAX_BODY_SIZE, "%s", body_message);
+    snprintf(res->body, res->body_size, "%s", body_message);
     return res;
 }
 
@@ -267,15 +290,15 @@ void print_http_response(HttpResponse *res)
         printf("%s: %s\n", res->headers[i].name, res->headers[i].value);
     }
     printf("body: %s\n\n", res->body);
+    printf("body_size: %d\n\n", res->body_size);
+    printf("body_mime: %s\n\n", res->body_mime);
 }
 
 // mime stands for Multipurpose Internet Mail Extensions
 char *get_mime_type(char *path) {
     // Find the last dot in the path
     char *ext = strrchr(path, '.');
-    if (!ext) {
-        return "application/octet-stream";
-    }
+    if (!ext) return "application/octet-stream";
 
     // Compare extension and return appropriate MIME type
     if (strcmp(ext, ".html") == 0) return "text/html";

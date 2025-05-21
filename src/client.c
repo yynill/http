@@ -42,22 +42,37 @@ int run_client()
 
     // Step 4: Send a message to the server
     HttpRequest httpreq = {
-        .method = "GET",
+        .method = "POST",
         .path = "/database.json",
         .version = "HTTP/1.1",
-        .header_count = 0
-        // ,
-        // .body = "{ \"id\": 1, \"name\": \"Ferdi\", \"value\": \"cool\" }"
+        .header_count = 0,
+        .body_size = 0,
+        .body = NULL
     };
 
     add_req_header(&httpreq, "Host", "localhost");
     add_req_header(&httpreq, "Content-Type", "text/plain");
 
-    char length_str[16];
-    sprintf(length_str, "%zu", strlen(httpreq.body));
-    add_req_header(&httpreq, "Content-Length", length_str);
+    // Example body content
+    char *body_content = "xxxxx";
+    httpreq.body_size = strlen(body_content);
+
+    // Allocate body memory and copy content
+    httpreq.body = malloc(httpreq.body_size + 1);
+    if (!httpreq.body) {
+        perror("malloc failed");
+        exit(1);
+    }
+    memcpy(httpreq.body, body_content, httpreq.body_size);
+    httpreq.body[httpreq.body_size] = '\0';  // Nullterminating string
+
+    // Set Content-Length
+    char content_length_str[16];
+    sprintf(content_length_str, "%d", httpreq.body_size);
+    add_req_header(&httpreq, "Content-Length", content_length_str);
 
     char *req = build_http_request(&httpreq);
+    // print_http_request(&httpreq);
     free_http_request(&httpreq);
     send(sock, req, strlen(req), 0);
     printf("\nRequest: \n%s\n", req);

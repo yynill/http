@@ -13,6 +13,7 @@ HttpResponse *handle_get(char *file_path);
 HttpResponse *handle_delete(HttpRequest *req, char *file_path);
 HttpResponse *handle_post(HttpRequest *req, char *file_path);
 HttpResponse *handle_put(HttpRequest *req, char *file_path);
+int send_respose(HttpResponse *res,int socket);
 
 // client functions
 int run_client();
