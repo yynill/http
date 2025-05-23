@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="UTF-8">
     <title>index</title>
@@ -11,14 +10,54 @@
             color: white;
         }
     </style>
-</head>
+    <!-- <script>
+        async function fetchEntries() {
+            const response = await fetch('/api/entries');
+            const entries = await response.json();
 
+            const table = document.getElementById('database_table');
+
+            entries.forEach(entry => {
+                const row = table.insertRow();
+                const idCell = row.insertCell(0);
+                const nameCell = row.insertCell(1);
+                const actionCell = row.insertCell(2);
+
+                idCell.textContent = entry.id;
+                nameCell.textContent = entry.name;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'delete';
+                deleteButton.onclick = () => deleteEntry(entry.id);
+                actionCell.appendChild(deleteButton);
+            });
+        }
+        window.onload = fetchEntries;
+    </script> -->
+</head>
 <body>
     <button onclick="window.location.href='/otherpage.html'">Go to Other Page</button>
 
     <h2>Hello from HTTP Server!</h2>
 
     <img src="/cool_cat.jpg" alt="cool cat" style="max-width:200px">
+
+    <br>
+
+    <table id="database_table">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Age</th>
+            <th>action</th>
+        </tr>
+    </table>
+    <form action="/api/add_entry" method="POST">
+        <label for="">add entry</label>
+        <input type="text" name="name">
+        <input type="text" name="age">
+        <button>send</button>
+    </form>
 </body>
 
 </html>

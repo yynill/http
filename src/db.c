@@ -10,6 +10,26 @@ int db_open(sqlite3 **db) {
     return SQLITE_OK;
 }
 
+int create_user_table(sqlite3 *db) {
+    const char *sql = 
+        "CREATE TABLE IF NOT EXISTS users ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "name TEXT NOT NULL, "
+        "age INTEGER NOT NULL"
+        ");";
+
+    return db_exec(db, sql);
+}
+
+void print_all_users(sqlite3 *db) {
+    const char *sql = "SELECT * FROM users;";
+    int rc = db_query(db, sql, print_callback);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "❌ Failed to query users\n");
+    }
+}
+
+
 void db_close(sqlite3 *db) {
     sqlite3_close(db);
 }

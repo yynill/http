@@ -19,7 +19,7 @@ void handle_sigint()
     exit(0);
 }
 
-int start_server()
+int start_server(sqlite3 **db)
 {
     printf("Starting HTTP server...\n");
 
@@ -94,7 +94,7 @@ int start_server()
         }
 
         // print_http_request(parsed_http_req);
-        HttpResponse *res = handle_request(parsed_http_req);
+        HttpResponse *res = handle_request(parsed_http_req, db);
         // print_http_response(res);
 
         int success = send_respose(res, new_socket);
@@ -111,35 +111,37 @@ int start_server()
     return 0;
 }
 
-int send_respose(HttpResponse *res,int socket)
+int send_respose(HttpResponse *res, int socket)
 {
     if (res == NULL) return 0;
-
+    char *http_response;
     if (strncmp(res->body_mime, "text/", 5) == 0)
     {
-        char *http_response = build_http_response(res, 1);
-        if (http_response == NULL) return 0;
+        http_response = build_http_response(res, 1);
+        if (http_response == NULL)
+        return 0;
         write(socket, http_response, strlen(http_response));
     }
     else if (strncmp(res->body_mime, "image/", 6) == 0)
     {
-        char *http_response_header = build_http_response(res, 0);
-        if (http_response_header == NULL) return 0;
-        write(socket, http_response_header, strlen(http_response_header));
+        http_response = build_http_response(res, 0);
+        if (http_response == NULL) return 0;
+        write(socket, http_response, strlen(http_response));
         write(socket, res->body, res->body_size);
     }
-    else
-    {
-        return 0;
+    else { // response what we have 
+        http_response = build_http_response(res, 1);
+        if (http_response == NULL) return 0;
+        write(socket, http_response, strlen(http_response));
     }
-
-    // printf("Response print: \n %s\n", http_response);
+    
+    printf("Response print: \n %s\n", http_response);
     printf("Response sent.\n");
 
     return 1;
 }
 
-HttpResponse *handle_request(HttpRequest *req)
+HttpResponse *handle_request(HttpRequest *req, sqlite3 **db)
 {
     if (req == NULL)
     {
@@ -153,10 +155,10 @@ HttpResponse *handle_request(HttpRequest *req)
 
     if (strncmp(req->path, "/api/", 5) == 0)
     {
-        if (strcmp(req->method, "GET") == 0) return handle_get(req);
-        if (strcmp(req->method, "POST") == 0) return handle_post(req);
-        if (strcmp(req->method, "PUT") == 0) return handle_put(req);
-        if (strcmp(req->method, "DELETE") == 0) return handle_delete(req);
+        if (strcmp(req->method, "GET") == 0) return handle_get(req, db);
+        if (strcmp(req->method, "POST") == 0) return handle_post(req, db);
+        if (strcmp(req->method, "PUT") == 0) return handle_put(req, db);
+        if (strcmp(req->method, "DELETE") == 0) return handle_delete(req, db);
 
         return make_error_response(500, "Unknown Method", "");
     }
@@ -164,7 +166,6 @@ HttpResponse *handle_request(HttpRequest *req)
     {
         char file_path[MAX_PATH_SIZE];
         snprintf(file_path, sizeof(file_path), "z_server_files%s", req->path); // server/...
-        printf("🟠 filepath: %s", file_path);
         return handle_file_request(file_path);
     }
 }
@@ -182,7 +183,8 @@ int file_exists(const char *path)
 
 HttpResponse *handle_file_request(char *file_path)
 {
-    if (!file_exists(file_path)) return make_error_response(404, "File not found", "");
+    if (!file_exists(file_path))
+        return make_error_response(404, "File not found", "");
 
     HttpResponse *res = malloc(sizeof(HttpResponse));
     if (!res)
@@ -215,7 +217,7 @@ HttpResponse *handle_file_request(char *file_path)
     rewind(file);
 
     res->body_size = filesize;
-    res->body = malloc(res->body_size + 1);  // +1 for '\0' terminator
+    res->body = malloc(res->body_size + 1); // +1 for '\0' terminator
     if (!res->body)
     {
         perror("malloc failed");
@@ -237,11 +239,15 @@ HttpResponse *handle_file_request(char *file_path)
 int main()
 {
     sqlite3 *db;
+
     if (db_open(&db) != SQLITE_OK) return 1;
+    
+    create_user_table(db);
+    print_all_users(db);
 
     signal(SIGINT, handle_sigint);
-    
-    if (start_server() < 0)
+
+    if (start_server(&db) < 0)
     {
         fprintf(stderr, "Failed to start server\n");
         return 1;

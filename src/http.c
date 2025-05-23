@@ -166,7 +166,7 @@ void print_http_request(HttpRequest *req)
     if (req == NULL)
     {
         printf("Failed to print req\n");
-        return;
+        return; 
     }
 
     printf("\nRequest print\n\n");

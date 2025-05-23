@@ -13,6 +13,19 @@ currently not sending heasders back to server. idk if i need to but i think it w
 
 
 
+api 
+| Aktion                   | Methode | Route             | Bedeutung                         |
+| :----------------------- | :------ | :---------------- | :-------------------------------- |
+| Alle Einträge holen      | GET     | /api/entries      | Holt alle Einträge                |
+| Einzelnen Eintrag holen  | GET     | /api/entries/{id} | Holt einen Eintrag mit der ID     |
+| Neuen Eintrag anlegen    | POST    | /api/entries      | Legt einen neuen Eintrag an       |
+| Eintrag aktualisieren    | PUT     | /api/entries/{id} | Ersetzt einen Eintrag vollständig |
+| Eintrag teilweise ändern | PATCH   | /api/entries/{id} | Ändert bestimmte Felder           |
+| Eintrag löschen          | DELETE  | /api/entries/{id} | Löscht einen Eintrag              |
+
+
+
+
 input box / button and sending something to the server
 Handle Multiple Connections 
 Multithreading

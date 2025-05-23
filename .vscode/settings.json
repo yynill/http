@@ -4,6 +4,7 @@
         "stdio.h": "c",
         "shared.h": "c",
         "http.h": "c",
-        "db.h": "c"
+        "db.h": "c",
+        "api.h": "c"
     }
 }

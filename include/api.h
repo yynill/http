@@ -2,11 +2,12 @@
 #define API_H
 
 #include "http.h"
+#include "db.h"
 
 
-HttpResponse *handle_get(HttpRequest *req);
-HttpResponse *handle_delete(HttpRequest *req);
-HttpResponse *handle_post(HttpRequest *req);
-HttpResponse *handle_put(HttpRequest *req);
+HttpResponse *handle_get(HttpRequest *req, sqlite3 **db);
+HttpResponse *handle_delete(HttpRequest *req, sqlite3 **db);
+HttpResponse *handle_post(HttpRequest *req, sqlite3 **db);
+HttpResponse *handle_put(HttpRequest *req, sqlite3 **db);
 
 #endif // API_H
