@@ -250,6 +250,7 @@ void free_http_response(HttpResponse *res)
         free(res->headers[i].name);
         free(res->headers[i].value);
     }
+    free(res);
     return;
 }
 
@@ -307,6 +308,7 @@ char *get_mime_type(char *path) {
     if (strcmp(ext, ".txt") == 0) return "text/plain";
     if (strcmp(ext, ".js") == 0) return "application/javascript";
     if (strcmp(ext, ".json") == 0) return "application/json";
+    if (strcmp(ext, ".pdf") == 0) return "application/pdf";
     if (strcmp(ext, ".png") == 0) return "image/png";
     if (strcmp(ext, ".jpg") == 0) return "image/jpeg";
     if (strcmp(ext, ".jpeg") == 0) return "image/jpeg";
@@ -317,7 +319,6 @@ char *get_mime_type(char *path) {
     if (strcmp(ext, ".mp3") == 0) return "audio/mpeg";
     if (strcmp(ext, ".wav") == 0) return "audio/wav";
     if (strcmp(ext, ".mp4") == 0) return "video/mp4";
-    if (strcmp(ext, ".pdf") == 0) return "application/pdf";
 
     return "application/octet-stream";
 }

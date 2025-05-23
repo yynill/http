@@ -72,7 +72,6 @@ int start_server(sqlite3 **db)
             perror("❌ accept failed");
             exit(EXIT_FAILURE);
         }
-        printf("Connection accepted.\n");
 
         char buffer[MAX_HTTP_REQUEST_SIZE] = {0};
         int valread = read(new_socket, buffer, sizeof(buffer) - 1);
@@ -129,14 +128,22 @@ int send_respose(HttpResponse *res, int socket)
         write(socket, http_response, strlen(http_response));
         write(socket, res->body, res->body_size);
     }
-    else { // response what we have 
+    else if (strncmp(res->body_mime, "application/", 12) == 0)
+    {
+        http_response = build_http_response(res, 1);
+        if (http_response == NULL)  return 0;
+        write(socket, http_response, strlen(http_response));
+        write(socket, res->body, res->body_size);
+    }
+    else 
+    {
         http_response = build_http_response(res, 1);
         if (http_response == NULL) return 0;
         write(socket, http_response, strlen(http_response));
     }
     
-    printf("Response print: \n %s\n", http_response);
-    printf("Response sent.\n");
+    printf("Response print:\n%s\n", http_response);
+    printf("Response sent.\n\n");
 
     return 1;
 }
@@ -243,7 +250,7 @@ int main()
     if (db_open(&db) != SQLITE_OK) return 1;
     
     create_user_table(db);
-    print_all_users(db);
+    // print_all_users(db);
 
     signal(SIGINT, handle_sigint);
 

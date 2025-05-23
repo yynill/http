@@ -10,32 +10,44 @@
             color: white;
         }
     </style>
-    <!-- <script>
+    <script>
         async function fetchEntries() {
             const response = await fetch('/api/entries');
             const entries = await response.json();
 
-            const table = document.getElementById('database_table');
-
             entries.forEach(entry => {
-                const row = table.insertRow();
-                const idCell = row.insertCell(0);
-                const nameCell = row.insertCell(1);
-                const actionCell = row.insertCell(2);
+                const tr = document.createElement('tr');
 
-                idCell.textContent = entry.id;
-                nameCell.textContent = entry.name;
+                ['id', 'name', 'age'].forEach(field => {
+                    const td = document.createElement('td');
+                    td.textContent = entry[field];
+                    tr.appendChild(td);
+                });
 
+                // Delete button
+                const deleteTd = document.createElement('td');
                 const deleteButton = document.createElement('button');
-                deleteButton.textContent = 'delete';
-                deleteButton.onclick = () => deleteEntry(entry.id);
-                actionCell.appendChild(deleteButton);
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = async () => {
+                    const res = await fetch(`/api/entries/${entry.id}`, {
+                        method: 'DELETE'
+                    });
+                    if (res.ok) {
+                        tr.remove();
+                    }
+                };
+                deleteTd.appendChild(deleteButton);
+                tr.appendChild(deleteTd);
+
+                document.getElementById("data").appendChild(tr);
             });
         }
+
         window.onload = fetchEntries;
-    </script> -->
-</head>
-<body>
+    </script>
+
+    </head>
+    <body>
     <button onclick="window.location.href='/otherpage.html'">Go to Other Page</button>
 
     <h2>Hello from HTTP Server!</h2>
@@ -51,6 +63,7 @@
             <th>Age</th>
             <th>action</th>
         </tr>
+        <tbody id="data"></tbody>
     </table>
     <form action="/api/add_entry" method="POST">
         <label for="">add entry</label>
